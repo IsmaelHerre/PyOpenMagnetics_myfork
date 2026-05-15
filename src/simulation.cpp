@@ -37,16 +37,13 @@ json simulate(json inputsJson, json magneticJson, json modelsData) {
     }
 }
 
-ordered_json export_magnetic_as_subcircuit(json magneticJson) {
+std::string export_magnetic_as_subcircuit(json magneticJson) {
     try {
         OpenMagnetics::Magnetic magnetic(magneticJson);
-        ordered_json subcircuit = OpenMagnetics::CircuitSimulatorExporter().export_magnetic_as_subcircuit(magnetic);
-        return subcircuit.dump(4);
+        return OpenMagnetics::CircuitSimulatorExporter().export_magnetic_as_subcircuit(magnetic);
     }
     catch (const std::exception &exc) {
-        ordered_json exception;
-        exception["data"] = "Exception: " + std::string{exc.what()};
-        return exception;
+        return "Exception: " + std::string{exc.what()};
     }
 }
 
