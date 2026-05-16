@@ -29,7 +29,9 @@ json calculate_advised_cores(json inputsJson, json weightsJson, int maximumNumbe
         json results = json();
         results["data"] = json::array();
         for (auto& [masMagnetic, scoring] : masMagnetics) {
-            std::string name = masMagnetic.get_magnetic().get_manufacturer_info().value().get_reference().value();
+            auto _mi = masMagnetic.get_magnetic().get_manufacturer_info();
+            std::string name = (_mi.has_value() && _mi.value().get_reference().has_value())
+                                ? _mi.value().get_reference().value() : "";
             json result;
             json masJson;
             to_json(masJson, masMagnetic);
@@ -75,7 +77,9 @@ json calculate_advised_magnetics(json inputsJson, int maximumNumberResults, json
         json results = json();
         results["data"] = json::array();
         for (auto& [masMagnetic, scoring] : masMagnetics) {
-            std::string name = masMagnetic.get_magnetic().get_manufacturer_info().value().get_reference().value();
+            auto _mi = masMagnetic.get_magnetic().get_manufacturer_info();
+            std::string name = (_mi.has_value() && _mi.value().get_reference().has_value())
+                                ? _mi.value().get_reference().value() : "";
             json result;
             json masJson;
             to_json(masJson, masMagnetic);
@@ -117,7 +121,6 @@ json calculate_advised_magnetics_fast(json inputsJson, int maximumNumberResults,
         json results = json();
         results["data"] = json::array();
         for (auto& [masMagnetic, scoring] : masMagnetics) {
-            std::string name = masMagnetic.get_magnetic().get_manufacturer_info().value().get_reference().value();
             json result;
             json masJson;
             to_json(masJson, masMagnetic);
@@ -156,7 +159,9 @@ json calculate_advised_magnetics_from_catalog(json inputsJson, json catalogJson,
         json results = json();
         results["data"] = json::array();
         for (auto& [masMagnetic, scoring] : masMagnetics) {
-            std::string name = masMagnetic.get_magnetic().get_manufacturer_info().value().get_reference().value();
+            auto _mi = masMagnetic.get_magnetic().get_manufacturer_info();
+            std::string name = (_mi.has_value() && _mi.value().get_reference().has_value())
+                                ? _mi.value().get_reference().value() : "";
             json result;
             json masJson;
             to_json(masJson, masMagnetic);
