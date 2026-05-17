@@ -606,10 +606,25 @@ rdc = PyOM.calculate_dc_resistance_per_meter("copper", 0.5e-3, 25)
 ```
 
 ### SPICE Export
+
 ```python
-subcircuit = PyOM.export_magnetic_as_subcircuit(magnetic)
-# Returns SPICE subcircuit string
+# Default: NgSpice .subckt text — QSPICE-compatible via .LIB directive
+subckt = PyOM.export_magnetic_as_subcircuit(magnetic)
+
+# Other targets — second arg selects the exporter
+subckt = PyOM.export_magnetic_as_subcircuit(magnetic, "LtSpice")
+plecs  = PyOM.export_magnetic_as_subcircuit(magnetic, "PLECS")
+nl5    = PyOM.export_magnetic_as_subcircuit(magnetic, "NL5")
+simba  = PyOM.export_magnetic_as_subcircuit(magnetic, "SIMBA")    # AESIM Simba JSON, NOT SPICE
 ```
+
+The fast adviser (`calculate_advised_magnetics_fast`) leaves the coil unprocessed —
+call `magnetic_autocomplete(mag, {})` before exporting, or the exporter throws
+`COIL_NOT_PROCESSED`. The full `calculate_advised_magnetics` returns a ready-to-export magnetic.
+
+PyOpenMagnetics has **no native QSPICE backend**; the `NgSpice` / `LtSpice` text drops
+straight into QSPICE via a `.LIB <file>.lib` SPICE directive on the schematic, paired with
+the built-in generic Sub-Circuit X-element symbol. No custom `.qsym` is needed.
 
 ---
 

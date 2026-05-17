@@ -678,8 +678,21 @@ def extract_operating_point(
     """Extract operating point from SPICE simulation results."""
     ...
 
-def export_magnetic_as_subcircuit(magnetic: Magnetic) -> str:
-    """Export magnetic as SPICE subcircuit string."""
+def export_magnetic_as_subcircuit(magnetic: Magnetic, simulator: str = "NgSpice") -> str:
+    """Export a magnetic component as a SPICE-compatible subcircuit.
+
+    Args:
+        magnetic: Magnetic component specification.
+        simulator: Target simulator. One of:
+            "NgSpice" (default) — ngspice .subckt text; QSPICE-compatible via .LIB
+            "LtSpice"             — LTspice .subckt text; QSPICE-compatible via .LIB
+            "PLECS"               — PLECS format
+            "NL5"                 — NL5 format
+            "SIMBA"               — AESIM Simba JSON (NOT SPICE text)
+
+    Returns:
+        Subcircuit definition. On error returns a string prefixed with "Exception: ".
+    """
     ...
 
 # =============================================================================
