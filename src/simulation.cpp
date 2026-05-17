@@ -37,10 +37,13 @@ json simulate(json inputsJson, json magneticJson, json modelsData) {
     }
 }
 
-std::string export_magnetic_as_subcircuit(json magneticJson) {
+std::string export_magnetic_as_subcircuit(json magneticJson, std::string simulator) {
     try {
         OpenMagnetics::Magnetic magnetic(magneticJson);
-        return OpenMagnetics::CircuitSimulatorExporter().export_magnetic_as_subcircuit(magnetic);
+        OpenMagnetics::CircuitSimulatorExporterModels model;
+        json simJson = simulator;
+        OpenMagnetics::from_json(simJson, model);
+        return OpenMagnetics::CircuitSimulatorExporter(model).export_magnetic_as_subcircuit(magnetic);
     }
     catch (const std::exception &exc) {
         return "Exception: " + std::string{exc.what()};
@@ -327,16 +330,25 @@ void register_simulation_bindings(py::module& m) {
     m.def("export_magnetic_as_subcircuit", &export_magnetic_as_subcircuit,
         R"pbdoc(
         Export a magnetic component as a SPICE-compatible subcircuit.
-        
-        Generates subcircuit netlist representation for circuit simulation.
-        
+
+        Generates subcircuit netlist for the selected simulator.
+        NgSpice / LtSpice / PLECS / NL5 return standard SPICE .subckt text
+        (QSPICE accepts SPICE .subckt natively via .LIB directive).
+        SIMBA returns AESIM Simba JSON component-library format.
+
         Args:
             magnetic_json: JSON object containing magnetic component specification.
-            subcircuit_type: Type of subcircuit model to generate.
-        
+            simulator: Target simulator. One of:
+                - "NgSpice"  : ngspice .subckt (default, QSPICE-compatible)
+                - "LtSpice"  : LTspice .subckt (QSPICE-compatible)
+                - "PLECS"    : Plecs format
+                - "NL5"      : NL5 format
+                - "SIMBA"    : Simba JSON (not SPICE text)
+
         Returns:
             String containing the subcircuit definition.
-        )pbdoc");
+        )pbdoc",
+        py::arg("magnetic_json"), py::arg("simulator") = "NgSpice");
     
     m.def("mas_autocomplete", &mas_autocomplete,
         R"pbdoc(

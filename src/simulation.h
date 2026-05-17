@@ -8,7 +8,8 @@ namespace PyMKF {
 json simulate(json inputsJson, json magneticJson, json modelsData);
 
 // Export
-std::string export_magnetic_as_subcircuit(json magneticJson);
+// simulator: "SIMBA" (default, returns JSON) | "NgSpice" | "LtSpice" | "PLECS" | "NL5"
+std::string export_magnetic_as_subcircuit(json magneticJson, std::string simulator);
 
 // Autocomplete
 json mas_autocomplete(json masJson, json configuration);
