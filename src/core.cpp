@@ -345,7 +345,15 @@ json calculate_gapping_from_number_turns_and_inductance(json coreData, json coil
 
     std::map<std::string, std::string> models = modelsData.get<std::map<std::string, std::string>>();
     std::transform(gappingTypeJson.begin(), gappingTypeJson.end(), gappingTypeJson.begin(), ::toupper);
-    OpenMagnetics::GappingType gappingType = magic_enum::enum_cast<OpenMagnetics::GappingType>(gappingTypeJson).value();
+    // The C++ GappingType enum only has GROUND | SPACER | RESIDUAL | DISTRIBUTED.
+    // Names like "SUBTRACTIVE" / "ADDITIVE" (from some MAS schemas) are NOT valid here
+    // — surface a clear error instead of bad_optional_access from .value().
+    auto gappingTypeOpt = magic_enum::enum_cast<OpenMagnetics::GappingType>(gappingTypeJson);
+    if (!gappingTypeOpt) {
+        throw std::invalid_argument("Unknown GappingType \"" + gappingTypeJson +
+                                    "\". Expected one of: GROUND | SPACER | RESIDUAL | DISTRIBUTED");
+    }
+    OpenMagnetics::GappingType gappingType = *gappingTypeOpt;
     
     auto reluctanceModelName = OpenMagnetics::defaults.reluctanceModelDefault;
     if (models.find("reluctance") != models.end()) {
