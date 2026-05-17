@@ -678,17 +678,35 @@ def extract_operating_point(
     """Extract operating point from SPICE simulation results."""
     ...
 
-def export_magnetic_as_subcircuit(magnetic: Magnetic, simulator: str = "NgSpice") -> str:
+def export_magnetic_as_subcircuit(
+    magnetic: Magnetic,
+    simulator: str = "NgSpice",
+    frequency: float = 100000.0,
+    temperature: float = 25.0,
+    mode: str = "FRACPOLE",
+) -> str:
     """Export a magnetic component as a SPICE-compatible subcircuit.
+
+    The model includes DC winding resistance, leakage/magnetizing inductance, winding
+    AC resistance (skin/proximity, via `mode`), and a core-loss network. Pass the
+    converter's `frequency` and operating `temperature` for an accurate fit.
 
     Args:
         magnetic: Magnetic component specification.
         simulator: Target simulator. One of:
-            "NgSpice" (default) — ngspice .subckt text; QSPICE-compatible via .LIB
-            "LtSpice"             — LTspice .subckt text; QSPICE-compatible via .LIB
+            "NgSpice" (default) — ngspice .subckt; QSPICE-compatible via .LIB
+            "LtSpice"             — LTspice .subckt; QSPICE-compatible via .LIB
             "PLECS"               — PLECS format
             "NL5"                 — NL5 format
             "SIMBA"               — AESIM Simba JSON (NOT SPICE text)
+        frequency: Reference frequency in Hz for the AC resistance fit (default 100 kHz).
+        temperature: Winding temperature in °C (default 25).
+        mode: AC-resistance curve-fitting mode:
+            "FRACPOLE" (default) — fractional-pole network, robust for skin effect
+            "LADDER"              — RL ladder; strict bounds may silently drop the ladder
+            "ROSANO" / "ROSANO_RLC" — parallel R||L stages
+            "AUTO"                — read `circuitSimulatorCurveFittingMode` setting
+            "ANALYTICAL"          — DC only (NgSpice raises)
 
     Returns:
         Subcircuit definition. On error returns a string prefixed with "Exception: ".

@@ -8,8 +8,20 @@ namespace PyMKF {
 json simulate(json inputsJson, json magneticJson, json modelsData);
 
 // Export
-// simulator: "SIMBA" (default, returns JSON) | "NgSpice" | "LtSpice" | "PLECS" | "NL5"
-std::string export_magnetic_as_subcircuit(json magneticJson, std::string simulator);
+//   simulator:   "NgSpice" (default) | "LtSpice" | "PLECS" | "NL5" | "SIMBA"
+//                NgSpice/LtSpice are QSPICE-compatible via .LIB; SIMBA returns JSON.
+//   frequency:   reference frequency (Hz) for AC resistance ladder fit. Default 100 kHz.
+//   temperature: winding temperature (°C) for DC resistance. Default 25.
+//   mode:        curve-fitting mode for winding AC resistance:
+//                "FRACPOLE" (default, robust for skin effect)
+//                "LADDER"   — strict bounds, may silently drop ladder
+//                "ROSANO" / "ROSANO_RLC"
+//                "AUTO"     — read circuitSimulatorCurveFittingMode setting
+std::string export_magnetic_as_subcircuit(json magneticJson,
+                                          std::string simulator  = "NgSpice",
+                                          double frequency       = 100000.0,
+                                          double temperature     = 25.0,
+                                          std::string mode       = "FRACPOLE");
 
 // Autocomplete
 json mas_autocomplete(json masJson, json configuration);

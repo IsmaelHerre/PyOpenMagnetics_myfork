@@ -608,23 +608,45 @@ rdc = PyOM.calculate_dc_resistance_per_meter("copper", 0.5e-3, 25)
 ### SPICE Export
 
 ```python
-# Default: NgSpice .subckt text — QSPICE-compatible via .LIB directive
-subckt = PyOM.export_magnetic_as_subcircuit(magnetic)
+# Full signature (defaults shown)
+PyOM.export_magnetic_as_subcircuit(
+    magnetic,
+    simulator   = "NgSpice",     # NgSpice | LtSpice | PLECS | NL5 | SIMBA
+    frequency   = 100000.0,      # reference freq (Hz) for the AC-resistance fit
+    temperature = 25.0,          # winding temperature (°C) for DC resistance
+    mode        = "FRACPOLE",    # FRACPOLE | LADDER | ROSANO | ROSANO_RLC | AUTO | ANALYTICAL
+)
 
-# Other targets — second arg selects the exporter
-subckt = PyOM.export_magnetic_as_subcircuit(magnetic, "LtSpice")
-plecs  = PyOM.export_magnetic_as_subcircuit(magnetic, "PLECS")
-nl5    = PyOM.export_magnetic_as_subcircuit(magnetic, "NL5")
-simba  = PyOM.export_magnetic_as_subcircuit(magnetic, "SIMBA")    # AESIM Simba JSON, NOT SPICE
+# Most common — full physics model at the operating point
+subckt = PyOM.export_magnetic_as_subcircuit(magnetic, "NgSpice", F_SW, T_op, "FRACPOLE")
 ```
+
+The model the exporter emits:
+- DC winding resistance (`Rdc1`) + magnetizing inductance (`Lmag_1`)
+- Winding AC resistance — what `mode` controls:
+  - **`FRACPOLE`** (default): fractional-pole network (gyrator + N-stage RC), α=0.5 by skin-effect
+    physics. Robust — works on any reasonable design. **Use this for accurate AC resistance.**
+  - `LADDER`: RL ladder. Strict 100 nH ≤ L ≤ 100 mH and 1 mΩ ≤ R ≤ 100 Ω bounds — the
+    exporter silently drops the ladder if the fit produces values outside, leaving only DC.
+  - `ROSANO` / `ROSANO_RLC`: parallel R||L stages (and a series-RLC for `_RLC`).
+  - `AUTO`: read `circuitSimulatorCurveFittingMode` setting (integer 0–5).
+  - `ANALYTICAL`: DC only; NgSpice raises.
+- Core-loss network (Rosano by default — `set_settings({"circuitSimulatorCoreLossTopology": N})`
+  to change: 0 = Ridley RL stages, 1 = Rosano R/RL/RLC branches).
+
+`simulator` chooses the output dialect:
+- `NgSpice` / `LtSpice` — standard SPICE `.subckt` text; **QSPICE accepts these natively** via a
+  `.LIB <file>.lib` directive on the schematic + the built-in generic Sub-Circuit X-element. No
+  custom `.qsym` symbol is needed.
+- `PLECS` — PLECS schematic format.
+- `NL5` — NL5 simulator format.
+- `SIMBA` — AESIM Simba JSON (NOT SPICE text).
+
+PyOpenMagnetics has **no native QSPICE backend** — use `NgSpice` for QSPICE.
 
 The fast adviser (`calculate_advised_magnetics_fast`) leaves the coil unprocessed —
 call `magnetic_autocomplete(mag, {})` before exporting, or the exporter throws
 `COIL_NOT_PROCESSED`. The full `calculate_advised_magnetics` returns a ready-to-export magnetic.
-
-PyOpenMagnetics has **no native QSPICE backend**; the `NgSpice` / `LtSpice` text drops
-straight into QSPICE via a `.LIB <file>.lib` SPICE directive on the schematic, paired with
-the built-in generic Sub-Circuit X-element symbol. No custom `.qsym` is needed.
 
 ---
 

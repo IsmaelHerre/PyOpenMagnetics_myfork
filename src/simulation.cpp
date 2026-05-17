@@ -37,11 +37,28 @@ json simulate(json inputsJson, json magneticJson, json modelsData) {
     }
 }
 
-std::string export_magnetic_as_subcircuit(json magneticJson, std::string simulator) {
+std::string export_magnetic_as_subcircuit(json magneticJson,
+                                          std::string simulator,
+                                          double frequency,
+                                          double temperature,
+                                          std::string mode) {
     try {
-        auto model = json(simulator).get<OpenMagnetics::CircuitSimulatorExporterModels>();
-        return OpenMagnetics::CircuitSimulatorExporter(model)
-            .export_magnetic_as_subcircuit(OpenMagnetics::Magnetic(magneticJson));
+        // CircuitSimulatorExporterModels has a string-based from_json (SIMBA/NgSpice/...)
+        auto simModel = json(simulator).get<OpenMagnetics::CircuitSimulatorExporterModels>();
+        // CircuitSimulatorExporterCurveFittingModes does NOT — use magic_enum for the name
+        auto fitModeOpt = magic_enum::enum_cast<
+            OpenMagnetics::CircuitSimulatorExporterCurveFittingModes>(mode);
+        if (!fitModeOpt) {
+            throw std::invalid_argument(
+                "Unknown mode \"" + mode + "\". "
+                "Expected one of: ANALYTICAL | LADDER | FRACPOLE | ROSANO | ROSANO_RLC | AUTO");
+        }
+        return OpenMagnetics::CircuitSimulatorExporter(simModel)
+            .export_magnetic_as_subcircuit(OpenMagnetics::Magnetic(magneticJson),
+                                           frequency, temperature,
+                                           std::nullopt,   // outputFilename — don't write to file
+                                           std::nullopt,   // filePathOrFile
+                                           *fitModeOpt);
     }
     catch (const std::exception &exc) {
         return "Exception: " + std::string{exc.what()};
@@ -329,24 +346,41 @@ void register_simulation_bindings(py::module& m) {
         R"pbdoc(
         Export a magnetic component as a SPICE-compatible subcircuit.
 
-        Generates subcircuit netlist for the selected simulator.
-        NgSpice / LtSpice / PLECS / NL5 return standard SPICE .subckt text
-        (QSPICE accepts SPICE .subckt natively via .LIB directive).
-        SIMBA returns AESIM Simba JSON component-library format.
+        Generates a netlist for the selected simulator. NgSpice / LtSpice / PLECS / NL5
+        return standard SPICE .subckt text (QSPICE accepts SPICE .subckt natively via
+        the .LIB directive). SIMBA returns AESIM Simba JSON.
+
+        The model includes: DC winding resistance, leakage and magnetizing inductance,
+        winding AC resistance (skin/proximity, via the chosen `mode`), and a core-loss
+        network. Pass the operating `frequency` and `temperature` for an accurate fit.
 
         Args:
-            magnetic_json: JSON object containing magnetic component specification.
+            magnetic_json: Magnetic component specification.
             simulator: Target simulator. One of:
-                - "NgSpice"  : ngspice .subckt (default, QSPICE-compatible)
-                - "LtSpice"  : LTspice .subckt (QSPICE-compatible)
-                - "PLECS"    : Plecs format
-                - "NL5"      : NL5 format
-                - "SIMBA"    : Simba JSON (not SPICE text)
+                "NgSpice" (default) — ngspice .subckt, QSPICE-compatible via .LIB
+                "LtSpice"             — LTspice .subckt, QSPICE-compatible via .LIB
+                "PLECS"               — Plecs format
+                "NL5"                 — NL5 format
+                "SIMBA"               — AESIM Simba JSON (NOT SPICE text)
+            frequency: Reference frequency in Hz for the AC resistance fit (default 100 kHz).
+                Use the converter's switching frequency for best accuracy at fundamental.
+            temperature: Winding temperature in °C for DC resistance (default 25).
+            mode: AC-resistance curve-fitting mode. One of:
+                "FRACPOLE" (default) — fractional-pole network, robust for skin effect
+                "LADDER"              — RL ladder; strict 100 nH ≤ L ≤ 100 mH,
+                                         1 mΩ ≤ R ≤ 100 Ω bounds, silently dropped if violated
+                "ROSANO" / "ROSANO_RLC" — parallel R||L stages
+                "AUTO"                — read `circuitSimulatorCurveFittingMode` setting
+                "ANALYTICAL"          — DC only (NgSpice raises)
 
         Returns:
-            String containing the subcircuit definition.
+            Subcircuit definition. On error returns a string prefixed with "Exception: ".
         )pbdoc",
-        py::arg("magnetic_json"), py::arg("simulator") = "NgSpice");
+        py::arg("magnetic_json"),
+        py::arg("simulator")   = "NgSpice",
+        py::arg("frequency")   = 100000.0,
+        py::arg("temperature") = 25.0,
+        py::arg("mode")        = "FRACPOLE");
     
     m.def("mas_autocomplete", &mas_autocomplete,
         R"pbdoc(
