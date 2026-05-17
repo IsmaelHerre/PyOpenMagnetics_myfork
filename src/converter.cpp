@@ -683,46 +683,48 @@ json design_magnetics_from_converter(
 }
 
 
-json process_flyback(json flybackJson) {
-    return process_converter("flyback", flybackJson, true);
+// All process_* wrappers accept use_ngspice (default true, matching upstream).
+// Pass false in sandboxed environments where libngspice cannot dlopen.
+json process_flyback(json flybackJson, bool useNgspice) {
+    return process_converter("flyback", flybackJson, useNgspice);
 }
 
-json process_buck(json buckJson) {
-    return process_converter("buck", buckJson, true);
+json process_buck(json buckJson, bool useNgspice) {
+    return process_converter("buck", buckJson, useNgspice);
 }
 
-json process_boost(json boostJson) {
-    return process_converter("boost", boostJson, true);
+json process_boost(json boostJson, bool useNgspice) {
+    return process_converter("boost", boostJson, useNgspice);
 }
 
-json process_single_switch_forward(json forwardJson) {
-    return process_converter("single_switch_forward", forwardJson, true);
+json process_single_switch_forward(json forwardJson, bool useNgspice) {
+    return process_converter("single_switch_forward", forwardJson, useNgspice);
 }
 
-json process_two_switch_forward(json forwardJson) {
-    return process_converter("two_switch_forward", forwardJson, true);
+json process_two_switch_forward(json forwardJson, bool useNgspice) {
+    return process_converter("two_switch_forward", forwardJson, useNgspice);
 }
 
-json process_active_clamp_forward(json forwardJson) {
-    return process_converter("active_clamp_forward", forwardJson, true);
+json process_active_clamp_forward(json forwardJson, bool useNgspice) {
+    return process_converter("active_clamp_forward", forwardJson, useNgspice);
 }
 
-json process_push_pull(json pushPullJson) {
-    return process_converter("push_pull", pushPullJson, true);
+json process_push_pull(json pushPullJson, bool useNgspice) {
+    return process_converter("push_pull", pushPullJson, useNgspice);
 }
 
-json process_isolated_buck(json isolatedBuckJson) {
-    return process_converter("isolated_buck", isolatedBuckJson, true);
+json process_isolated_buck(json isolatedBuckJson, bool useNgspice) {
+    return process_converter("isolated_buck", isolatedBuckJson, useNgspice);
 }
 
-json process_isolated_buck_boost(json isolatedBuckBoostJson) {
-    return process_converter("isolated_buck_boost", isolatedBuckBoostJson, true);
+json process_isolated_buck_boost(json isolatedBuckBoostJson, bool useNgspice) {
+    return process_converter("isolated_buck_boost", isolatedBuckBoostJson, useNgspice);
 }
 
-json process_current_transformer(json ctJson, double turnsRatio, double secondaryResistance) {
+json process_current_transformer(json ctJson, double turnsRatio, double secondaryResistance, bool useNgspice) {
     ctJson["turnsRatio"] = turnsRatio;
     ctJson["secondaryResistance"] = secondaryResistance;
-    return process_converter("current_transformer", ctJson, true);
+    return process_converter("current_transformer", ctJson, useNgspice);
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -950,17 +952,29 @@ void register_converter_bindings(py::module& m) {
         py::arg("max_results") = 1, py::arg("core_mode_json") = "available cores",
         py::arg("use_ngspice") = true, py::arg("weights_json") = nullptr);
     
-    m.def("process_flyback", &process_flyback, "Process Flyback converter.", py::arg("flyback"));
-    m.def("process_buck", &process_buck, "Process Buck converter.", py::arg("buck"));
-    m.def("process_boost", &process_boost, "Process Boost converter.", py::arg("boost"));
-    m.def("process_single_switch_forward", &process_single_switch_forward, "Process Single-Switch Forward.", py::arg("forward"));
-    m.def("process_two_switch_forward", &process_two_switch_forward, "Process Two-Switch Forward.", py::arg("forward"));
-    m.def("process_active_clamp_forward", &process_active_clamp_forward, "Process Active Clamp Forward.", py::arg("forward"));
-    m.def("process_push_pull", &process_push_pull, "Process Push-Pull converter.", py::arg("push_pull"));
-    m.def("process_isolated_buck", &process_isolated_buck, "Process Isolated Buck.", py::arg("isolated_buck"));
-    m.def("process_isolated_buck_boost", &process_isolated_buck_boost, "Process Isolated Buck-Boost.", py::arg("isolated_buck_boost"));
+    // process_* convenience wrappers. use_ngspice defaults to True; pass False in
+    // environments where libngspice cannot dlopen (e.g., some sandboxed Windows setups).
+    m.def("process_flyback", &process_flyback, "Process Flyback converter.",
+        py::arg("flyback"), py::arg("use_ngspice") = true);
+    m.def("process_buck", &process_buck, "Process Buck converter.",
+        py::arg("buck"), py::arg("use_ngspice") = true);
+    m.def("process_boost", &process_boost, "Process Boost converter.",
+        py::arg("boost"), py::arg("use_ngspice") = true);
+    m.def("process_single_switch_forward", &process_single_switch_forward, "Process Single-Switch Forward.",
+        py::arg("forward"), py::arg("use_ngspice") = true);
+    m.def("process_two_switch_forward", &process_two_switch_forward, "Process Two-Switch Forward.",
+        py::arg("forward"), py::arg("use_ngspice") = true);
+    m.def("process_active_clamp_forward", &process_active_clamp_forward, "Process Active Clamp Forward.",
+        py::arg("forward"), py::arg("use_ngspice") = true);
+    m.def("process_push_pull", &process_push_pull, "Process Push-Pull converter.",
+        py::arg("push_pull"), py::arg("use_ngspice") = true);
+    m.def("process_isolated_buck", &process_isolated_buck, "Process Isolated Buck.",
+        py::arg("isolated_buck"), py::arg("use_ngspice") = true);
+    m.def("process_isolated_buck_boost", &process_isolated_buck_boost, "Process Isolated Buck-Boost.",
+        py::arg("isolated_buck_boost"), py::arg("use_ngspice") = true);
     m.def("process_current_transformer", &process_current_transformer, "Process Current Transformer.",
-        py::arg("ct"), py::arg("turns_ratio"), py::arg("secondary_resistance") = 0.0);
+        py::arg("ct"), py::arg("turns_ratio"),
+        py::arg("secondary_resistance") = 0.0, py::arg("use_ngspice") = true);
 
     m.def("generate_ngspice_circuit", &generate_ngspice_circuit,
         "Return the canonical ngspice SPICE deck for the topology at a "

@@ -3,9 +3,15 @@
 
 namespace PyMKF {
 
-// Core plotting functions
-json plot_core(json magneticJson, std::string outputPath = "");
-json plot_magnetic(json magneticJson, std::string outputPath = "");
+// Core plotting functions. The 3 Painter bools default to upstream defaults.
+json plot_core(json magneticJson, std::string outputPath = "",
+               bool addProportionForColorBar = false,
+               bool showTicks = false,
+               bool useAdvancedPainter = false);
+json plot_magnetic(json magneticJson, std::string outputPath = "",
+                   bool addProportionForColorBar = false,
+                   bool showTicks = false,
+                   bool useAdvancedPainter = false);
 json plot_magnetic_field(json magneticJson, json operatingPointJson, std::string outputPath = "");
 json plot_electric_field(json magneticJson, json operatingPointJson, std::string outputPath = "");
 json plot_wire(json wireDataJson, std::string outputPath = "");

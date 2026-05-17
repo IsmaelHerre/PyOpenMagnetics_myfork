@@ -428,12 +428,21 @@ def calculate_core_losses(
     ...
 
 def calculate_winding_losses(
-    magnetic: Magnetic, 
-    operating_point: OperatingPoint, 
-    temperature: float = 25.0
+    magnetic: Magnetic,
+    operating_point: OperatingPoint,
+    temperature: float = 25.0,
+    models_json: JsonDict | None = None,
 ) -> JsonDict:
     """Calculate total winding losses (DC + AC).
-    
+
+    Args:
+        magnetic, operating_point, temperature: see WindingLosses.
+        models_json: Optional dict selecting models. Any key may be omitted.
+            "magneticFieldStrength": e.g. "BINNS_LAWRENSON" | "LAMMERANER" | "DOWELL"
+            "fringingEffect":        see MKF Models.h
+            "skinEffect":            e.g. "DOWELL" | "WOJDA" | "ALBACH" | "PAYNE"
+            "proximityEffect":       e.g. "ROSSMANITH" | "WANG" | "FERREIRA"
+
     Returns:
         Dict with: windingLosses (W), windingLossesPerWinding (list),
         ohmicLosses, skinEffectLosses, proximityEffectLosses.
@@ -600,16 +609,21 @@ def calculate_advised_cores(
 def calculate_advised_magnetics(
     inputs: Inputs,
     max_results: int = 5,
-    core_mode: str = "available cores"
+    core_mode: str = "available cores",
+    weights: JsonDict | None = None,
 ) -> JsonDict:
     """Get complete magnetic designs (core + winding).
-    
+
     ⚠️ core_mode MUST be lowercase with space: "available cores" or "standard cores"
        Passing "AVAILABLE_CORES" or "STANDARD_CORES" throws RuntimeError.
     ⚠️ Use POSITIONAL arguments — keyword names in this stub may be wrong.
-    
+
     Args:
         inputs: Processed inputs dict with "designRequirements" and "operatingPoints".
+        max_results: Maximum number of magnetic recommendations.
+        core_mode: "available cores" (commercial) | "standard cores" (faster).
+        weights: Optional {"cost": w, "dimensions": w, "efficiency": w, "losses": w}.
+                 Pass None or {} for the default ranking.
         max_results: Maximum number of recommendations.
         core_mode: "available cores" or "standard cores" (lowercase with space!).
     
@@ -950,44 +964,49 @@ def design_magnetics_from_converter(
     ...
 
 
-def process_flyback(flyback: JsonDict) -> Inputs:
+def process_flyback(flyback: JsonDict, use_ngspice: bool = True) -> Inputs:
     """Process Flyback converter specification to Inputs.
     ⚠️ See AGENTS.md Section 5 for the correct JSON schema.
+    Pass use_ngspice=False in sandboxed environments where libngspice cannot dlopen.
     """
     ...
 
-def process_buck(buck: JsonDict) -> Inputs:
-    """Process Buck converter specification to Inputs."""
+def process_buck(buck: JsonDict, use_ngspice: bool = True) -> Inputs:
+    """Process Buck converter specification to Inputs.
+    Pass use_ngspice=False in sandboxed environments where libngspice cannot dlopen."""
     ...
 
-def process_boost(boost: JsonDict) -> Inputs:
+def process_boost(boost: JsonDict, use_ngspice: bool = True) -> Inputs:
     """Process Boost converter specification to Inputs."""
     ...
 
-def process_single_switch_forward(forward: JsonDict) -> Inputs:
+def process_single_switch_forward(forward: JsonDict, use_ngspice: bool = True) -> Inputs:
     """Process Single-Switch Forward converter to Inputs."""
     ...
 
-def process_two_switch_forward(forward: JsonDict) -> Inputs:
+def process_two_switch_forward(forward: JsonDict, use_ngspice: bool = True) -> Inputs:
     """Process Two-Switch Forward converter to Inputs."""
     ...
 
-def process_active_clamp_forward(forward: JsonDict) -> Inputs:
+def process_active_clamp_forward(forward: JsonDict, use_ngspice: bool = True) -> Inputs:
     """Process Active Clamp Forward converter to Inputs."""
     ...
 
-def process_push_pull(push_pull: JsonDict) -> Inputs:
+def process_push_pull(push_pull: JsonDict, use_ngspice: bool = True) -> Inputs:
     """Process Push-Pull converter specification to Inputs."""
     ...
 
-def process_isolated_buck(isolated_buck: JsonDict) -> Inputs:
+def process_isolated_buck(isolated_buck: JsonDict, use_ngspice: bool = True) -> Inputs:
     """Process Isolated Buck converter to Inputs."""
     ...
 
-def process_isolated_buck_boost(isolated_buck_boost: JsonDict) -> Inputs:
+def process_isolated_buck_boost(isolated_buck_boost: JsonDict, use_ngspice: bool = True) -> Inputs:
     """Process Isolated Buck-Boost converter to Inputs."""
     ...
 
-def process_current_transformer(ct: JsonDict, turns_ratio: float, secondary_resistance: float = 0.0) -> Inputs:
+def process_current_transformer(
+    ct: JsonDict, turns_ratio: float,
+    secondary_resistance: float = 0.0, use_ngspice: bool = True,
+) -> Inputs:
     """Process Current Transformer specification to Inputs."""
     ...

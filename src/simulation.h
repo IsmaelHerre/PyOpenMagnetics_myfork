@@ -34,7 +34,12 @@ json extract_map_column_names(json fileJson, size_t numberWindings, double frequ
 json extract_column_names(json fileJson);
 
 // Inductance calculations
-json calculate_inductance_matrix(json magneticJson, double frequency, json modelsData);
+//   operatingPointJson is optional (default null) — pass for temperature-dependent permeability
+json calculate_inductance_matrix(json magneticJson, double frequency, json modelsData,
+                                 json operatingPointJson = json());
+json calculate_inductance_matrix_per_frequency(json magneticJson, std::vector<double> frequencies,
+                                                json modelsData = json(),
+                                                json operatingPointJson = json());
 json calculate_leakage_inductance(json magneticJson, double frequency, size_t sourceIndex);
 
 // Resistance calculations

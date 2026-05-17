@@ -205,20 +205,62 @@ json extract_column_names(json fileJson) {
     }
 }
 
-json calculate_inductance_matrix(json magneticJson, double frequency, json modelsData) {
+json calculate_inductance_matrix(json magneticJson, double frequency, json modelsData,
+                                 json operatingPointJson) {
     try {
         OpenMagnetics::Magnetic magnetic(magneticJson);
-        
+
         auto reluctanceModelName = OpenMagnetics::defaults.reluctanceModelDefault;
         if (!modelsData.is_null() && modelsData.find("reluctance") != modelsData.end()) {
             OpenMagnetics::from_json(modelsData["reluctance"], reluctanceModelName);
         }
 
         OpenMagnetics::Inductance inductance(reluctanceModelName);
-        auto inductanceMatrix = inductance.calculate_inductance_matrix(magnetic, frequency);
+        // operatingPointJson is optional — pass it in for temperature-dependent permeability.
+        ScalarMatrixAtFrequency inductanceMatrix;
+        if (operatingPointJson.is_null() || operatingPointJson.empty()) {
+            inductanceMatrix = inductance.calculate_inductance_matrix(magnetic, frequency);
+        } else {
+            OperatingPoint operatingPoint(operatingPointJson);
+            inductanceMatrix = inductance.calculate_inductance_matrix(magnetic, frequency, &operatingPoint);
+        }
 
         json result;
         to_json(result, inductanceMatrix);
+        return result;
+    }
+    catch (const std::exception &exc) {
+        json exception;
+        exception["data"] = "Exception: " + std::string{exc.what()};
+        return exception;
+    }
+}
+
+json calculate_inductance_matrix_per_frequency(json magneticJson, std::vector<double> frequencies,
+                                                json modelsData, json operatingPointJson) {
+    try {
+        OpenMagnetics::Magnetic magnetic(magneticJson);
+
+        auto reluctanceModelName = OpenMagnetics::defaults.reluctanceModelDefault;
+        if (!modelsData.is_null() && modelsData.find("reluctance") != modelsData.end()) {
+            OpenMagnetics::from_json(modelsData["reluctance"], reluctanceModelName);
+        }
+
+        OpenMagnetics::Inductance inductance(reluctanceModelName);
+        std::vector<ScalarMatrixAtFrequency> matrices;
+        if (operatingPointJson.is_null() || operatingPointJson.empty()) {
+            matrices = inductance.calculate_inductance_matrix_per_frequency(magnetic, frequencies);
+        } else {
+            OperatingPoint operatingPoint(operatingPointJson);
+            matrices = inductance.calculate_inductance_matrix_per_frequency(magnetic, frequencies, &operatingPoint);
+        }
+
+        json result = json::array();
+        for (auto& m : matrices) {
+            json mj;
+            to_json(mj, m);
+            result.push_back(mj);
+        }
         return result;
     }
     catch (const std::exception &exc) {
@@ -469,18 +511,40 @@ void register_simulation_bindings(py::module& m) {
     m.def("calculate_inductance_matrix", &calculate_inductance_matrix,
         R"pbdoc(
         Calculate the complete inductance matrix for a magnetic component.
-        
-        Computes the inductance matrix at the specified frequency, including
-        self inductances (diagonal elements) and mutual inductances (off-diagonal).
-        
+
+        Computes self-inductances (diagonal) and mutual inductances (off-diagonal) at
+        the given frequency. Pass an operating_point for temperature-dependent permeability.
+
         Args:
-            magnetic_json: JSON object containing magnetic component specification.
+            magnetic_json: Magnetic component specification.
             frequency: Operating frequency in Hz.
-            models_json: JSON object specifying which models to use (e.g., reluctance model).
-        
+            models_json: Optional dict — {"reluctance": "ZHANG" | "MUEHLETHALER" | ...}.
+            operating_point_json: Optional operating point for temperature-dependent
+                effects. Defaults to null (uses ambient assumption).
+
         Returns:
             JSON object with the inductance matrix at the specified frequency.
-        )pbdoc");
+        )pbdoc",
+        py::arg("magnetic_json"), py::arg("frequency"), py::arg("models_json"),
+        py::arg("operating_point_json") = json());
+
+    m.def("calculate_inductance_matrix_per_frequency", &calculate_inductance_matrix_per_frequency,
+        R"pbdoc(
+        Calculate inductance matrices at multiple frequencies in one call.
+
+        Useful for Bode-plot style sweeps without a Python loop.
+
+        Args:
+            magnetic_json: Magnetic component specification.
+            frequencies: List of frequencies in Hz.
+            models_json: Optional dict (see calculate_inductance_matrix).
+            operating_point_json: Optional operating point.
+
+        Returns:
+            JSON array of inductance matrices, one per frequency.
+        )pbdoc",
+        py::arg("magnetic_json"), py::arg("frequencies"),
+        py::arg("models_json") = json(), py::arg("operating_point_json") = json());
     
     m.def("calculate_leakage_inductance", &calculate_leakage_inductance,
         R"pbdoc(

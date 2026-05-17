@@ -12,7 +12,10 @@ json calculate_steinmetz_coefficients(json dataJson, json rangesJson);
 json calculate_steinmetz_coefficients_with_error(json dataJson, json rangesJson);
 
 // Winding losses
-json calculate_winding_losses(json magneticJson, json operatingPointJson, double temperature);
+//   models_json keys (any may be omitted; missing key = C++ default model):
+//     "magneticFieldStrength", "fringingEffect", "skinEffect", "proximityEffect"
+json calculate_winding_losses(json magneticJson, json operatingPointJson, double temperature,
+                              json modelsJson = json::object());
 json calculate_ohmic_losses(json coilJson, json operatingPointJson, double temperature);
 json calculate_magnetic_field_strength_field(json operatingPointJson, json magneticJson);
 json calculate_proximity_effect_losses(json coilJson, double temperature, json windingLossesOutputJson, json windingWindowMagneticStrengthFieldOutputJson);

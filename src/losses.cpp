@@ -126,12 +126,37 @@ json calculate_steinmetz_coefficients_with_error(json dataJson, json rangesJson)
     }
 }
 
-json calculate_winding_losses(json magneticJson, json operatingPointJson, double temperature) {
+// Parse string -> enum, or std::nullopt when key absent / empty / unknown.
+template<typename E>
+static std::optional<E> _opt_enum(const std::map<std::string, std::string>& models,
+                                  const std::string& key) {
+    auto it = models.find(key);
+    if (it == models.end() || it->second.empty()) return std::nullopt;
+    return magic_enum::enum_cast<E>(it->second);
+}
+
+json calculate_winding_losses(json magneticJson, json operatingPointJson, double temperature, json modelsJson) {
     try {
         OpenMagnetics::Magnetic magnetic(magneticJson);
         OperatingPoint operatingPoint(operatingPointJson);
 
-        auto windingLossesOutput = OpenMagnetics::WindingLosses().calculate_losses(magnetic, operatingPoint, temperature);
+        // Build the WindingLossesModels struct from the optional models dict.
+        // Any missing key falls through to the C++ default for that model.
+        OpenMagnetics::WindingLossesModels modelChoices;
+        if (modelsJson.is_object() && !modelsJson.empty()) {
+            auto models = modelsJson.get<std::map<std::string, std::string>>();
+            modelChoices.magneticFieldStrengthModel =
+                _opt_enum<OpenMagnetics::MagneticFieldStrengthModels>(models, "magneticFieldStrength");
+            modelChoices.magneticFieldStrengthFringingEffectModel =
+                _opt_enum<OpenMagnetics::MagneticFieldStrengthFringingEffectModels>(models, "fringingEffect");
+            modelChoices.skinEffectModel =
+                _opt_enum<OpenMagnetics::WindingSkinEffectLossesModels>(models, "skinEffect");
+            modelChoices.proximityEffectModel =
+                _opt_enum<OpenMagnetics::WindingProximityEffectLossesModels>(models, "proximityEffect");
+        }
+
+        auto windingLossesOutput =
+            OpenMagnetics::WindingLosses(modelChoices).calculate_losses(magnetic, operatingPoint, temperature);
 
         json result;
         to_json(result, windingLossesOutput);
@@ -404,17 +429,21 @@ void register_losses_bindings(py::module& m) {
     m.def("calculate_winding_losses", &calculate_winding_losses,
         R"pbdoc(
         Calculate total winding losses including all AC effects.
-        
-        Computes comprehensive winding losses including:
-        - DC ohmic losses (I²R)
-        - Skin effect losses (current crowding at high frequency)
-        - Proximity effect losses (eddy currents from nearby conductors)
-        
+
+        Computes DC ohmic losses (I²R), skin effect losses, and proximity effect losses.
+
         Args:
             magnetic_json: JSON object with complete magnetic specification.
             operating_point_json: JSON object with excitation conditions.
             temperature: Winding temperature in Celsius.
-        
+            models_json: Optional dict selecting models. Any key may be omitted.
+                "magneticFieldStrength": "BINNS_LAWRENSON" | "LAMMERANER" | "DOWELL" | "WANG" | "ALBACH"
+                "fringingEffect":        "ROSHEN" | "ALBACH" | "MUEHLETHALER"  (check Models.h)
+                "skinEffect":            "DOWELL" | "WOJDA" | "ALBACH" | "PAYNE" | "LOTFI" |
+                                         "XI_NAN" | "KAZIMIERCZUK" | "KUTKUT" | ...
+                "proximityEffect":       "ROSSMANITH" | "WANG" | "FERREIRA" | "LAMMERANER" |
+                                         "ALBACH" | "DOWELL" | "XI_NAN" | "WOJDA"
+
         Returns:
             JSON WindingLossesOutput object containing:
                 - windingLosses: Total winding loss in Watts
@@ -422,8 +451,13 @@ void register_losses_bindings(py::module& m) {
                 - ohmicLosses: DC resistance losses breakdown
                 - skinEffectLosses: High-frequency skin losses
                 - proximityEffectLosses: Proximity effect losses
+
+        Example:
+            >>> models = {"skinEffect": "DOWELL", "proximityEffect": "FERREIRA"}
+            >>> r = PyMKF.calculate_winding_losses(mag, op, 40.0, models)
         )pbdoc",
-        py::arg("magnetic_json"), py::arg("operating_point_json"), py::arg("temperature"));
+        py::arg("magnetic_json"), py::arg("operating_point_json"), py::arg("temperature"),
+        py::arg("models_json") = json::object());
     
     m.def("calculate_ohmic_losses", &calculate_ohmic_losses,
         R"pbdoc(

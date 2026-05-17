@@ -4,25 +4,20 @@
 
 namespace PyMKF {
 
-json plot_core(json magneticJson, std::string outputPath) {
+json plot_core(json magneticJson, std::string outputPath,
+               bool addProportionForColorBar, bool showTicks, bool useAdvancedPainter) {
     try {
         OpenMagnetics::Magnetic magnetic(magneticJson);
-        
-        // Use provided path or default to temp directory
-        std::filesystem::path filePath = outputPath.empty() 
+        std::filesystem::path filePath = outputPath.empty()
             ? std::filesystem::temp_directory_path() / "pyom_plot_core.svg"
             : std::filesystem::path(outputPath);
-        
-        // Create the painter and paint the core only
-        OpenMagnetics::Painter painter(filePath, false, false, false);
+
+        OpenMagnetics::Painter painter(filePath, addProportionForColorBar, showTicks, useAdvancedPainter);
         painter.paint_core(magnetic);
-        
-        // Export and get the SVG string
-        std::string svgContent = painter.export_svg();
-        
+
         json result;
         result["success"] = true;
-        result["svg"] = svgContent;
+        result["svg"] = painter.export_svg();
         return result;
     }
     catch (const std::exception &exc) {
@@ -33,27 +28,22 @@ json plot_core(json magneticJson, std::string outputPath) {
     }
 }
 
-json plot_magnetic(json magneticJson, std::string outputPath) {
+json plot_magnetic(json magneticJson, std::string outputPath,
+                   bool addProportionForColorBar, bool showTicks, bool useAdvancedPainter) {
     try {
         OpenMagnetics::Magnetic magnetic(magneticJson);
-        
-        // Use provided path or default to temp directory
-        std::filesystem::path filePath = outputPath.empty() 
+        std::filesystem::path filePath = outputPath.empty()
             ? std::filesystem::temp_directory_path() / "pyom_plot_magnetic.svg"
             : std::filesystem::path(outputPath);
-        
-        // Create the painter and paint the full magnetic (core, bobbin, coil)
-        OpenMagnetics::Painter painter(filePath, false, false, false);
+
+        OpenMagnetics::Painter painter(filePath, addProportionForColorBar, showTicks, useAdvancedPainter);
         painter.paint_core(magnetic);
         painter.paint_bobbin(magnetic);
         painter.paint_coil_turns(magnetic);
-        
-        // Export and get the SVG string
-        std::string svgContent = painter.export_svg();
-        
+
         json result;
         result["success"] = true;
-        result["svg"] = svgContent;
+        result["svg"] = painter.export_svg();
         return result;
     }
     catch (const std::exception &exc) {
@@ -195,36 +185,48 @@ void register_plotting_bindings(py::module& m) {
     m.def("plot_core", &plot_core,
         R"pbdoc(
         Generate a 2D cross-section visualization of a magnetic core as SVG.
-        
+
         Args:
             magneticJson: JSON object with complete magnetic specification (core + coil).
             outputPath: Optional file path to save SVG. If empty, uses temp directory.
-        
+            addProportionForColorBar: Reserve space for a color bar (default False).
+            showTicks: Render axis ticks (default False).
+            useAdvancedPainter: Use AdvancedPainter (matplotpp) instead of SVG (default False).
+
         Returns:
             JSON object with:
             - success: Boolean indicating operation success
             - svg: SVG string content of the visualization
             - error: Error message if success is false
         )pbdoc",
-        py::arg("magneticJson"), py::arg("outputPath") = "");
-    
+        py::arg("magneticJson"), py::arg("outputPath") = "",
+        py::arg("addProportionForColorBar") = false,
+        py::arg("showTicks") = false,
+        py::arg("useAdvancedPainter") = false);
+
     m.def("plot_magnetic", &plot_magnetic,
         R"pbdoc(
         Generate a complete visualization of the magnetic assembly as SVG.
-        
+
         Shows the full magnetic including core, bobbin, and coil turns.
-        
+
         Args:
             magneticJson: JSON object with complete magnetic specification.
             outputPath: Optional file path to save SVG. If empty, uses temp directory.
-        
+            addProportionForColorBar: Reserve space for a color bar (default False).
+            showTicks: Render axis ticks (default False).
+            useAdvancedPainter: Use AdvancedPainter instead of SVG (default False).
+
         Returns:
             JSON object with:
             - success: Boolean indicating operation success
             - svg: SVG string content of the visualization
             - error: Error message if success is false
         )pbdoc",
-        py::arg("magneticJson"), py::arg("outputPath") = "");
+        py::arg("magneticJson"), py::arg("outputPath") = "",
+        py::arg("addProportionForColorBar") = false,
+        py::arg("showTicks") = false,
+        py::arg("useAdvancedPainter") = false);
     
     m.def("plot_magnetic_field", &plot_magnetic_field,
         R"pbdoc(
